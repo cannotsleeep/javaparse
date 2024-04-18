@@ -1,0 +1,40 @@
+import org.elasticsearch.gradle.internal.test.RestIntegTestTask
+
+/*
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0 and the Server Side Public License, v 1; you may not use this file except
+ * in compliance with, at your election, the Elastic License 2.0 or the Server
+ * Side Public License, v 1.
+ */
+
+// apply plugin: 'elasticsearch.standalone-rest-test'
+apply plugin: 'elasticsearch.legacy-java-rest-test'
+
+// TODO: this test works, but it isn't really a rest test...should we have another plugin for "non rest test that just needs N clusters?"
+
+dependencies {
+  javaRestTestImplementation project(':client:transport') // randomly swapped in as a transport
+}
+
+def singleNodeIntegTest = tasks.register("singleNodeIntegTest", RestIntegTestTask) {
+  mustRunAfter("precommit")
+  testClassesDirs = sourceSets.javaRestTest.output.classesDirs
+  classpath = sourceSets.javaRestTest.runtimeClasspath
+}
+
+testClusters.matching { it.name == "singleNodeIntegTest" }.configureEach {
+  setting 'discovery.type', 'single-node'
+}
+
+tasks.named("javaRestTest").configure {
+  dependsOn singleNodeIntegTest
+}
+
+tasks.named('javaRestTestTestingConventions').configure {
+  baseClass 'org.elasticsearch.smoketest.ESSmokeClientTestCase'
+}
+
+tasks.named("check").configure {
+  dependsOn("javaRestTest")
+}

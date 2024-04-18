@@ -1,0 +1,30 @@
+apply plugin: 'elasticsearch.legacy-java-rest-test'
+
+dependencies {
+  javaRestTestImplementation project(xpackModule('core'))
+  javaRestTestImplementation project(path: xpackModule('security'))
+  javaRestTestImplementation project(path: xpackProject('transport-client').path)
+}
+
+testClusters.matching { it.name == "javaRestTest"}.configureEach {
+  testDistribution = "DEFAULT"
+  setting 'xpack.security.enabled', 'true'
+  setting 'xpack.license.self_generated.type', 'trial'
+  extraConfigFile 'roles.yml', file('roles.yml')
+  [
+    test_admin: 'superuser',
+    transport_user: 'superuser',
+    existing: 'superuser',
+    bob: 'actual_role'
+  ].each { String username, String role ->
+    user username: username, password: 'x-pack-test-password', role: role
+  }
+}
+
+tasks.matching { it.name.equals('javaRestTest')}.configureEach {integTestTask ->
+  nonInputProperties.systemProperty 'tests.config.dir', "${-> testClusters.javaRestTest.singleNode().getConfigDir()}"
+}
+
+tasks.named('javaRestTestTestingConventions').configure {
+  baseClass 'org.elasticsearch.xpack.security.MigrateToolTestCase'
+}

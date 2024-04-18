@@ -1,0 +1,30 @@
+/*
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0 and the Server Side Public License, v 1; you may not use this file except
+ * in compliance with, at your election, the Elastic License 2.0 or the Server
+ * Side Public License, v 1.
+ */
+
+apply plugin: 'elasticsearch.legacy-yaml-rest-test'
+
+dependencies {
+  yamlRestTestImplementation project(':modules:ingest-common')
+  yamlRestTestImplementation project(':modules:ingest-geoip')
+  yamlRestTestImplementation project(':modules:lang-mustache')
+  yamlRestTestImplementation project(':modules:lang-painless')
+  yamlRestTestImplementation project(':modules:reindex')
+}
+
+testClusters.configureEach {
+  setting 'xpack.security.enabled', 'false'
+}
+
+tasks.named("yamlRestTestTestingConventions").configure {
+  baseClass 'org.elasticsearch.ingest.AbstractScriptTestCase'
+  baseClass 'org.elasticsearch.test.rest.yaml.ESClientYamlSuiteTestCase'
+}
+
+tasks.named("forbiddenPatterns").configure {
+  exclude '**/*.mmdb'
+}

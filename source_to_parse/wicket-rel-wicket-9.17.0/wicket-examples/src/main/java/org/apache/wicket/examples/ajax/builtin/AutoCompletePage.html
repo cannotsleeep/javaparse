@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<html xmlns:wicket="http://wicket.apache.org">
+	<body>
+
+		<wicket:extend>
+
+		The textfield below will autocomplete country names. It utilizes AutoCompleteTextField in wicket-extensions.<br/><br/>
+
+		<form wicket:id="form">
+			Country: <input type="text" wicket:id="ac" size="50"/>
+			<br/>
+			History of selected values:
+			<br/>
+			<div wicket:id="history"></div>
+		</form>
+
+		</wicket:extend>
+
+	</body>
+</html>

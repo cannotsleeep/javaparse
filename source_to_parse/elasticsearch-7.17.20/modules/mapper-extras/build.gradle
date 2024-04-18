@@ -1,0 +1,42 @@
+/*
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0 and the Server Side Public License, v 1; you may not use this file except
+ * in compliance with, at your election, the Elastic License 2.0 or the Server
+ * Side Public License, v 1.
+ */
+apply plugin: 'elasticsearch.legacy-yaml-rest-test'
+apply plugin: 'elasticsearch.internal-cluster-test'
+
+esplugin {
+  description 'Adds advanced field mappers'
+  classname 'org.elasticsearch.index.mapper.MapperExtrasPlugin'
+  hasClientJar = true
+}
+
+restResources {
+  restApi {
+    include '_common', 'cluster', 'field_caps', 'nodes', 'indices', 'index', 'search', 'get'
+  }
+}
+
+tasks.named('splitPackagesAudit').configure {
+  // index is owned by server, move these to mapper specific packages
+  ignoreClasses 'org.elasticsearch.index.query.RankFeatureQueryBuilder',
+    'org.elasticsearch.index.query.RankFeatureQueryBuilders',
+    'org.elasticsearch.index.query.SourceConfirmedTextQuery',
+    'org.elasticsearch.index.query.SourceIntervalsSource',
+    'org.elasticsearch.index.mapper.MapperExtrasPlugin',
+    'org.elasticsearch.index.mapper.MatchOnlyTextFieldMapper',
+    'org.elasticsearch.index.mapper.RankFeatureFieldMapper',
+    'org.elasticsearch.index.mapper.RankFeatureMetaFieldMapper',
+    'org.elasticsearch.index.mapper.RankFeaturesFieldMapper',
+    'org.elasticsearch.index.mapper.ScaledFloatFieldMapper',
+    'org.elasticsearch.index.mapper.SearchAsYouTypeFieldMapper',
+    'org.elasticsearch.index.mapper.TokenCountFieldMapper'
+}
+
+tasks.named('internalClusterTestTestingConventions').configure {
+  baseClass 'org.elasticsearch.index.mapper.MapperTestCase'
+  baseClass 'org.elasticsearch.test.ESIntegTestCase'
+}

@@ -1,0 +1,28 @@
+apply plugin: 'elasticsearch.build'
+
+dependencies {
+  api 'org.ow2.asm:asm:9.1'
+  api project(':server')
+  api project(':x-pack:plugin:core')
+  testImplementation project(':test:framework')
+}
+
+tasks.named("forbiddenApisMain").configure {
+  enabled = true
+}
+
+tasks.named("dependencyLicenses").configure {
+  enabled = false
+}
+
+tasks.named("dependenciesInfo").configure {
+  enabled = false
+}
+
+tasks.named("jarHell").configure {
+  enabled = false
+}
+
+tasks.named("thirdPartyAudit").configure {
+  enabled = false
+}

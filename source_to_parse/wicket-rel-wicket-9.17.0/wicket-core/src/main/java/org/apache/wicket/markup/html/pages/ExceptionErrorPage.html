@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns:wicket="http://wicket.apache.org">
+<head>
+<title>Unexpected RuntimeException</title>
+</head>
+<body>
+	<h1>Unexpected RuntimeException</h1>
+	<table ><tr><td><pre><span wicket:id="exception">message</span></pre></td></tr></table>
+
+	<div wicket:id="markupHighlight">
+		<h2>Markup</h2>
+		<p>
+		The problem is in "<span class="resource" wicket:id =  "resource">resource problem</span>":
+		</p>
+		<table><tr><td><pre><span class="markup" wicket:id="markup">markup goes here</span></pre></td></tr></table>
+	</div>
+
+	<div>
+		<h2>Stacktrace</h2>
+		<table><tr><td><pre><span class="markup" wicket:id="stacktrace">stacktrace goes here</span></pre></td></tr></table>
+	</div>
+
+	<p>
+	  <a href="#" wicket:id="displayPageViewLink">display page view</a>
+	</p>
+	<p>
+	<span wicket:id = "componentTree"></span>
+	</p>
+</body>
+</html>

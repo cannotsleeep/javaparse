@@ -1,0 +1,22 @@
+apply plugin: 'elasticsearch.internal-es-plugin'
+apply plugin: 'elasticsearch.internal-cluster-test'
+
+esplugin {
+  name 'spatial'
+  description 'A plugin for Basic Spatial features'
+  classname 'org.elasticsearch.xpack.spatial.SpatialPlugin'
+  extendedPlugins = ['x-pack-core', 'legacy-geo']
+}
+
+dependencies {
+  compileOnly project(path: ':modules:legacy-geo')
+  compileOnly project(path: xpackModule('core'))
+  testImplementation(testArtifact(project(xpackModule('core'))))
+  testImplementation project(path: xpackModule('vector-tile'))
+}
+
+testClusters.configureEach {
+  setting 'xpack.license.self_generated.type', 'trial'
+  testDistribution = 'DEFAULT'
+  setting 'xpack.security.enabled', 'false'
+}

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:wicket="http://wicket.apache.org">
+<head>
+    <title>Wicket Examples - sourcecode</title>
+</head>
+<body>
+	<div id="header">
+		<div class="inner">
+			<div class="left">Files</div>
+			<span class="close">[<a href="javascript:self.close()">Close</a>]</span>
+			<div class="right">Code for <span wicket:id="filename"></span></div>
+			
+		</div>
+	</div>
+	<div id="body">
+		<div class="left" wicket:id="filespanel">
+			<ul>
+				<li wicket:id="file">
+					<a href="#" wicket:id="link"><span wicket:id="name"></span></a>
+				</li>
+			</ul>
+		</div>
+		<div class="right" wicket:id="codepanel">
+			<div class="code-container">
+				<code wicket:id="code"></code>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,161 @@
+import org.elasticsearch.gradle.plugin.PluginBuildPlugin
+import org.gradle.internal.jvm.Jvm
+import org.elasticsearch.gradle.internal.info.BuildParams
+import org.elasticsearch.gradle.LoggedExec
+
+import org.elasticsearch.gradle.util.GradleUtils
+
+apply plugin: 'elasticsearch.legacy-yaml-rest-test'
+apply plugin: 'elasticsearch.validate-rest-spec'
+apply plugin: 'elasticsearch.internal-test-artifact'
+
+base {
+  archivesName = 'x-pack'
+}
+
+dependencies {
+  testImplementation(testArtifact(project(xpackModule('core'))))
+  testImplementation project(':test:framework')
+}
+
+// let the yamlRestTest see the classpath of test
+GradleUtils.extendSourceSet(project, "test", "yamlRestTest", tasks.named("yamlRestTest"))
+
+subprojects {
+  afterEvaluate {
+    if (project.plugins.hasPlugin(PluginBuildPlugin)) {
+      // see the root Gradle file for additional logic regarding this configuration
+      def featureAwarePluginConfiguration = project.configurations.create('featureAwarePlugin')
+      featureAwarePluginConfiguration.extendsFrom(project.configurations.compileClasspath)
+      project.dependencies.add('featureAwarePlugin', project(':x-pack:test:feature-aware'))
+      project.dependencies.add('featureAwarePlugin', project.sourceSets.main.output.getClassesDirs())
+
+      File successMarker = file("$buildDir/markers/featureAware")
+      def featureAwareCheck = tasks.register("featureAwareCheck", LoggedExec) {
+        description = "Runs FeatureAwareCheck on main classes."
+        dependsOn project.configurations.featureAwarePlugin
+        outputs.file(successMarker)
+
+        executable = "${Jvm.current().javaHome}/bin/java"
+
+        // default to main class files if such a source set exists
+        final List files = []
+        if (project.sourceSets.findByName("main")) {
+          files.add(project.sourceSets.main.output.classesDirs)
+          dependsOn project.tasks.named('classes')
+        }
+        // filter out non-existent classes directories from empty source sets
+        final FileCollection classDirectories = project.files(files).filter { it.exists() }
+
+        doFirst {
+          args('-cp', featureAwarePluginConfiguration.asPath, 'org.elasticsearch.xpack.test.feature_aware.FeatureAwareCheck')
+          classDirectories.each { args it.getAbsolutePath() }
+        }
+        doLast {
+          successMarker.parentFile.mkdirs()
+          successMarker.setText("", 'UTF-8')
+        }
+      }
+
+      project.tasks.named("precommit").configure {
+        dependsOn featureAwareCheck
+      }
+    }
+  }
+}
+
+restResources {
+  restApi {
+    include '*'
+  }
+}
+
+artifacts {
+  restXpackTests(new File(projectDir, "src/yamlRestTest/resources/rest-api-spec/test"))
+}
+
+// location for keys and certificates
+File extraResourceDir = file("$buildDir/extra_resource")
+File nodeKey = file("$extraResourceDir/testnode.pem")
+File nodeCert = file("$extraResourceDir/testnode.crt")
+// location for service tokens
+File serviceTokens = file("$extraResourceDir/service_tokens")
+
+// Add key and certs to test classpath: it expects them there
+// User cert and key PEM files instead of a JKS Keystore for the cluster's trust material so that
+// it can run in a FIPS 140 JVM
+// TODO: Remove all existing uses of cross project file references when the new approach for referencing static files is available
+// https://github.com/elastic/elasticsearch/pull/32201
+tasks.register("copyExtraResources", Copy) {
+  from(project(':x-pack:plugin:core').file('src/test/resources/org/elasticsearch/xpack/security/transport/ssl/certs/simple/')) {
+    include 'testnode.crt', 'testnode.pem'
+  }
+  from(project(':x-pack:plugin:security:qa:service-account').file('src/javaRestTest/resources/')) {
+    include 'service_tokens'
+  }
+  into extraResourceDir
+}
+// Add keystores to test classpath: it expects it there
+sourceSets.yamlRestTest.resources.srcDir(extraResourceDir)
+tasks.named("processYamlRestTestResources").configure {
+  dependsOn("copyExtraResources")
+}
+
+tasks.named("yamlRestTest").configure {
+  // TODO: fix this rest test to not depend on a hardcoded port!
+  def blacklist = ['getting_started/10_monitor_cluster_health/*']
+  if (BuildParams.isSnapshotBuild() == false) {
+    // these tests attempt to install basic/internal licenses signed against the dev/public.key
+    // Since there is no infrastructure in place (anytime soon) to generate licenses using the production
+    // private key, these tests are blacklisted in non-snapshot test runs
+    blacklist.addAll(['xpack/15_basic/*', 'license/20_put_license/*', 'license/30_enterprise_license/*'])
+  }
+  systemProperty 'tests.rest.blacklist', blacklist.join(',')
+  dependsOn "copyExtraResources"
+}
+
+testClusters.configureEach {
+  testDistribution = 'DEFAULT' // this is important since we use the reindex module in ML
+  setting 'xpack.ml.enabled', 'true'
+  setting 'xpack.security.enabled', 'true'
+  setting 'xpack.watcher.enabled', 'false'
+  // Integration tests are supposed to enable/disable exporters before/after each test
+  setting 'xpack.security.authc.token.enabled', 'true'
+  setting 'xpack.security.authc.api_key.enabled', 'true'
+  setting 'xpack.security.transport.ssl.enabled', 'true'
+  setting 'xpack.security.transport.ssl.key', nodeKey.name
+  setting 'xpack.security.transport.ssl.certificate', nodeCert.name
+  setting 'xpack.security.transport.ssl.verification_mode', 'certificate'
+  setting 'xpack.security.audit.enabled', 'true'
+  setting 'xpack.license.self_generated.type', 'trial'
+  // disable ILM history, since it disturbs tests using _all
+  setting 'indices.lifecycle.history_index_enabled', 'false'
+  keystore 'bootstrap.password', 'x-pack-test-password'
+  keystore 'xpack.security.transport.ssl.secure_key_passphrase', 'testnode'
+  setting 'xpack.searchable.snapshot.shared_cache.size', '10mb'
+
+  user username: "x_pack_rest_user", password: "x-pack-test-password"
+  extraConfigFile nodeKey.name, nodeKey
+  extraConfigFile nodeCert.name, nodeCert
+  extraConfigFile serviceTokens.name, serviceTokens
+}
+
+tasks.register('enforceApiSpecsConvention').configure {
+  doLast {
+    if (fileTree('src/test/resources/rest-api-spec/api').files) {
+      throw new GradleException("There are REST specs in src/test source set. These should be moved to the :rest-api-spec project.")
+    }
+  }
+}
+
+tasks.register('enforceYamlTestConvention').configure {
+  doLast {
+    if (fileTree('src/test/resources/rest-api-spec/test').files) {
+      throw new GradleException("There are YAML tests in src/test source set. These should be moved to src/yamlRestTest.")
+    }
+  }
+}
+
+tasks.named("precommit").configure {
+  dependsOn 'enforceYamlTestConvention', 'enforceApiSpecsConvention'
+}
